@@ -1,6 +1,7 @@
 import { hashPassword } from './crypto';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8082';
+const API_PREFIX = '/api';
 
 export interface AuthResponse {
   access_token: string;
@@ -68,7 +69,7 @@ class ApiClient {
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${API_BASE_URL}${API_PREFIX}${endpoint}`;
     const token = this.getToken();
 
     const config: RequestInit = {
@@ -181,7 +182,7 @@ class ApiClient {
     formData.append('file', file);
     
     const token = this.getToken();
-    const response = await fetch(`${API_BASE_URL}/puppies/${puppyId}/images`, {
+    const response = await fetch(`${API_BASE_URL}${API_PREFIX}/puppies/${puppyId}/images`, {
       method: 'POST',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -210,7 +211,7 @@ class ApiClient {
     formData.append('file', file);
     
     const token = this.getToken();
-    const response = await fetch(`${API_BASE_URL}/puppies/${puppyId}/videos`, {
+    const response = await fetch(`${API_BASE_URL}${API_PREFIX}/puppies/${puppyId}/videos`, {
       method: 'POST',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -264,7 +265,7 @@ class ApiClient {
     formData.append('file', file);
     
     const token = this.getToken();
-    const response = await fetch(`${API_BASE_URL}/litters/${litterId}/mother/image`, {
+    const response = await fetch(`${API_BASE_URL}${API_PREFIX}/litters/${litterId}/mother/image`, {
       method: 'POST',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -287,7 +288,7 @@ class ApiClient {
     formData.append('file', file);
     
     const token = this.getToken();
-    const response = await fetch(`${API_BASE_URL}/litters/${litterId}/father/image`, {
+    const response = await fetch(`${API_BASE_URL}${API_PREFIX}/litters/${litterId}/father/image`, {
       method: 'POST',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -332,7 +333,7 @@ class ApiClient {
     formData.append('order', '0');
     
     const token = this.getToken();
-    const response = await fetch(`${API_BASE_URL}/api/homepage/hero-images`, {
+    const response = await fetch(`${API_BASE_URL}${API_PREFIX}/homepage/hero-images`, {
       method: 'POST',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),

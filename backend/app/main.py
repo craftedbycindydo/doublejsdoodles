@@ -1,8 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pathlib import Path
 from app.api import auth, litters, contact, puppies, homepage
 from app.services.database import connect_to_mongo, close_mongo_connection
 from app.config.settings import settings
+import os
 
 app = FastAPI(title="Double JS Doodles API", version="1.0.0")
 
@@ -22,17 +26,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth.router)
-app.include_router(litters.router)
-app.include_router(puppies.router)
-app.include_router(contact.router)
-app.include_router(homepage.router)
+# Include API routers with /api prefix
+app.include_router(auth.router, prefix="/api")
+app.include_router(litters.router, prefix="/api")
+app.include_router(puppies.router, prefix="/api")
+app.include_router(contact.router, prefix="/api")
+app.include_router(homepage.router, prefix="/api")
 
-@app.get("/")
-async def root():
-    return {"message": "Double JS Doodles API is running"}
-
-@app.get("/health")
+# Health check endpoint for Railway
+@app.get("/api/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "message": "Double JS Doodles API is running"}
+
+# Serve static files (React build)
+static_dir = Path("./static")
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    
+    # Serve React app for all non-API routes
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # If it's an API route, let FastAPI handle it
+        if full_path.startswith("api/"):
+            return {"error": "API endpoint not found"}
+        
+        # For React Router - serve index.html for any non-API route
+        index_file = static_dir / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+        else:
+            return {"error": "Frontend not built", "message": "Static files not found"}
+else:
+    # Fallback when static files don't exist
+    @app.get("/")
+    async def root():
+        return {"message": "Double JS Doodles API is running", "note": "Frontend static files not found"}
