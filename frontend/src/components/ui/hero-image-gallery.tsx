@@ -19,6 +19,7 @@ interface HeroImageGalleryProps {
   className?: string;
   autoplay?: boolean;
   autoplayInterval?: number;
+  onImageChange?: (currentImage: string) => void;
 }
 
 export function HeroImageGallery({ 
@@ -26,10 +27,21 @@ export function HeroImageGallery({
   alt = "Hero image", 
   className,
   autoplay = true,
-  autoplayInterval = 5000
+  autoplayInterval = 5000,
+  onImageChange
 }: HeroImageGalleryProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get current image
+  const currentImage = images[currentIndex];
+
+  // Notify parent of image change for blurred background
+  useEffect(() => {
+    if (onImageChange && currentImage) {
+      onImageChange(currentImage);
+    }
+  }, [currentImage, onImageChange]);
 
   // Auto-play functionality
   useEffect(() => {
@@ -104,7 +116,7 @@ export function HeroImageGallery({
         
         {/* Image indicators - only show if multiple images */}
         {images.length > 1 && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-2">
             {images.map((_, index) => (
               <button
                 key={index}
@@ -115,8 +127,8 @@ export function HeroImageGallery({
                 className={cn(
                   "w-2 h-2 rounded-full transition-all duration-300",
                   index === currentIndex 
-                    ? "bg-white w-8" 
-                    : "bg-white/50 hover:bg-white/75"
+                    ? "bg-black w-8" 
+                    : "bg-black/50 hover:bg-black/75"
                 )}
                 aria-label={`Go to image ${index + 1}`}
               />

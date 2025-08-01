@@ -37,6 +37,7 @@ export function HomePage() {
   })
   const [loading, setLoading] = useState(true)
   const [selectedPuppyData, setSelectedPuppyData] = useState<{puppyName: string; puppyColor: string; puppyStatus: string} | null>(null)
+  const [currentHeroImage, setCurrentHeroImage] = useState<string>('')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -81,6 +82,10 @@ export function HomePage() {
 
   const handleSelectedPuppyChange = (puppyData: {puppyName: string; puppyColor: string; puppyStatus: string} | null) => {
     setSelectedPuppyData(puppyData)
+  }
+
+  const handleHeroImageChange = (imageUrl: string) => {
+    setCurrentHeroImage(imageUrl)
   }
 
   // Clear selected puppy data when there are no litters
@@ -130,13 +135,19 @@ export function HomePage() {
             </div>
             
             {/* Image container with proper aspect ratio and fit */}
-            <div className="relative w-full h-[60vh] min-h-[400px] max-h-[80vh] overflow-hidden rounded-lg mx-auto max-w-7xl hero-image-container">
+            <div 
+              className="relative w-full h-[60vh] min-h-[400px] max-h-[80vh] overflow-hidden rounded-lg mx-auto max-w-7xl hero-image-container with-blur-bg"
+              style={{ 
+                '--hero-bg-image': currentHeroImage ? `url(${currentHeroImage})` : 'none' 
+              } as React.CSSProperties}
+            >
               <HeroImageGallery 
                 images={heroImages.map(img => img.image_url)}
                 alt="Double Js Doodles Hero"
                 autoplay={true}
                 autoplayInterval={5000}
                 className="absolute inset-0 w-full h-full"
+                onImageChange={handleHeroImageChange}
               />
             </div>
             

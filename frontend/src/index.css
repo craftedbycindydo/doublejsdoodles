@@ -29,7 +29,36 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f5f5f0 0%, #ebe7dd 100%); /* Add subtle background */
+  background: linear-gradient(135deg, #f5f5f0 0%, #ebe7dd 100%); /* Fallback background */
+  position: relative;
+  overflow: hidden;
+}
+
+/* Blurred background effect for hero images */
+.hero-image-container.with-blur-bg::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  background-image: var(--hero-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(20px) brightness(0.7);
+  z-index: 0;
+  transform: scale(1.1); /* Slightly scale to hide blur edges */
+}
+
+.hero-image-container.with-blur-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure image indicators are visible above blurred background */
+.hero-image-container.with-blur-bg .absolute {
+  z-index: 2;
 }
 
 /* GLightbox custom styling for hero images */
