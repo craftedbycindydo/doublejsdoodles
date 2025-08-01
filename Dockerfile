@@ -1,19 +1,20 @@
 # Use Node.js for frontend build
 FROM node:18-alpine AS frontend-build
 
-WORKDIR /app/frontend
+WORKDIR /app
 
 # Copy package files
-COPY frontend/package*.json ./
+COPY frontend/package*.json ./frontend/
 
-# Install dependencies (use npm install instead of npm ci for better compatibility)
+# Change to frontend directory and install dependencies
+WORKDIR /app/frontend
 RUN npm install --production --frozen-lockfile
 
-# Copy frontend source
+# Copy all frontend source files
 COPY frontend/ ./
 
-# Build the frontend
-RUN npm run build
+# Verify files are in the right place and build
+RUN ls -la public/ && npm run build
 
 # Use Python for backend
 FROM python:3.11-slim
