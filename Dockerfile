@@ -15,13 +15,28 @@ COPY frontend/public/ ./public/
 COPY frontend/src/ ./src/
 COPY frontend/tsconfig.json frontend/tailwind.config.js frontend/postcss.config.js frontend/components.json ./
 
-# Verify structure and build
+# Build arguments for React environment variables
+ARG REACT_APP_API_BASE_URL
+ARG REACT_APP_SITE_NAME  
+ARG REACT_APP_SITE_URL
+ARG REACT_APP_AUTH_SALT
+
+# Set environment variables for React build
+ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
+ENV REACT_APP_SITE_NAME=$REACT_APP_SITE_NAME
+ENV REACT_APP_SITE_URL=$REACT_APP_SITE_URL  
+ENV REACT_APP_AUTH_SALT=$REACT_APP_AUTH_SALT
+
+# Verify structure and build with environment variables
 RUN echo "=== Frontend file structure ===" && \
     ls -la && \
     echo "=== Public directory ===" && \
     ls -la public/ && \
     echo "=== Src directory ===" && \
     ls -la src/ && \
+    echo "=== Environment variables ===" && \
+    echo "REACT_APP_API_BASE_URL: $REACT_APP_API_BASE_URL" && \
+    echo "REACT_APP_SITE_NAME: $REACT_APP_SITE_NAME" && \
     echo "=== Building frontend ===" && \
     npm run build
 
