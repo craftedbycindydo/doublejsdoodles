@@ -14,7 +14,7 @@ from datetime import datetime
 import uuid
 import os
 
-router = APIRouter(prefix="/api/homepage", tags=["homepage"])
+router = APIRouter(prefix="/homepage", tags=["homepage"])
 
 def serialize_homepage_content(doc) -> dict:
     """Convert homepage document to dict"""

@@ -322,7 +322,7 @@ class ApiClient {
 
   // Homepage content endpoint
   async getHomepageContent(): Promise<any> {
-    return this.request('/api/homepage/content');
+    return this.request('/homepage/content');
   }
 
   // Hero image upload endpoint
@@ -356,7 +356,7 @@ class ApiClient {
 
   // Update hero image endpoint
   async updateHeroImage(heroId: string, updates: { title?: string; subtitle?: string; alt_text?: string; is_active?: boolean; order?: number }): Promise<{ message: string }> {
-    return this.request(`/api/homepage/hero-images/${heroId}`, {
+    return this.request(`/homepage/hero-images/${heroId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
@@ -364,7 +364,7 @@ class ApiClient {
 
   // Delete hero image endpoint
   async deleteHeroImage(heroId: string): Promise<{ message: string }> {
-    return this.request(`/api/homepage/hero-images/${heroId}`, {
+    return this.request(`/homepage/hero-images/${heroId}`, {
       method: 'DELETE',
     });
   }
