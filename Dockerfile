@@ -1,20 +1,25 @@
 # Use Node.js for frontend build
 FROM node:18-alpine AS frontend-build
 
-WORKDIR /app
+# Set working directory for frontend
+WORKDIR /frontend
 
-# Copy package files
-COPY frontend/package*.json ./frontend/
+# Copy package files first for better caching
+COPY frontend/package.json frontend/package-lock.json ./
 
-# Change to frontend directory and install dependencies
-WORKDIR /app/frontend
-RUN npm install --production --frozen-lockfile
+# Install dependencies
+RUN npm install --frozen-lockfile --production
 
-# Copy all frontend source files
+# Copy all frontend source code
 COPY frontend/ ./
 
-# Verify files are in the right place and build
-RUN ls -la public/ && npm run build
+# Verify structure and build
+RUN echo "=== Frontend file structure ===" && \
+    ls -la && \
+    echo "=== Public directory ===" && \
+    ls -la public/ && \
+    echo "=== Building frontend ===" && \
+    npm run build
 
 # Use Python for backend
 FROM python:3.11-slim
@@ -34,7 +39,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 
 # Copy built frontend files
-COPY --from=frontend-build /app/frontend/build ./static
+COPY --from=frontend-build /frontend/build ./static
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app
