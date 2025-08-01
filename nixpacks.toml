@@ -9,7 +9,9 @@ cmds = [
 
 [phases.build]
 cmds = [
-    "cd frontend && npm run build"
+    "cd frontend && npm run build",
+    "mkdir -p backend/static",
+    "cp -r frontend/build/* backend/static/"
 ]
 
 [start]
