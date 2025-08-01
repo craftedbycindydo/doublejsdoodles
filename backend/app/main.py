@@ -41,7 +41,13 @@ async def health_check():
 # Serve static files (React build)
 static_dir = Path("./static")
 if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    # React builds create a 'static' subdirectory with CSS/JS assets
+    react_static_dir = static_dir / "static"
+    if react_static_dir.exists():
+        app.mount("/static", StaticFiles(directory=react_static_dir), name="static")
+    else:
+        # Fallback: serve directly from static if no nested static dir
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
     
     # Serve React app for all non-API routes
     @app.get("/{full_path:path}")
