@@ -24,13 +24,8 @@ export function Navbar() {
         <div className="flex h-14 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <img 
-                src="/logo.svg" 
-                alt="Double Js Doodles Logo" 
-                className="h-10 w-10"
-              />
-              <span className="text-xl font-bold text-foreground hidden sm:block">
+            <Link to="/" className="flex items-center space-x-2">
+              <span className="text-xl font-bold text-foreground">
                 Double Js Doodles
               </span>
             </Link>
