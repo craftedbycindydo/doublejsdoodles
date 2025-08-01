@@ -10,14 +10,18 @@ COPY frontend/package.json frontend/package-lock.json ./
 # Install dependencies
 RUN npm install --frozen-lockfile --production
 
-# Copy all frontend source code
-COPY frontend/ ./
+# Copy frontend source code in specific order to ensure all files are included
+COPY frontend/public/ ./public/
+COPY frontend/src/ ./src/
+COPY frontend/tsconfig.json frontend/tailwind.config.js frontend/postcss.config.js frontend/components.json ./
 
 # Verify structure and build
 RUN echo "=== Frontend file structure ===" && \
     ls -la && \
     echo "=== Public directory ===" && \
     ls -la public/ && \
+    echo "=== Src directory ===" && \
+    ls -la src/ && \
     echo "=== Building frontend ===" && \
     npm run build
 
