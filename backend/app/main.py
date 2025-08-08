@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
-from app.api import auth, litters, contact, puppies, homepage
+from app.api import auth, litters, contact, puppies, homepage, seo
 from app.services.database import connect_to_mongo, close_mongo_connection
 from app.config.settings import settings
 import os
@@ -31,6 +31,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(litters.router, prefix="/api")
 app.include_router(puppies.router, prefix="/api")
 app.include_router(contact.router, prefix="/api")
+app.include_router(seo.router, prefix="/api")
 app.include_router(homepage.router, prefix="/api")
 
 # Health check endpoint for Railway

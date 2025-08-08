@@ -699,9 +699,9 @@ export function PuppyInfoStep({ puppies, onChange, litterBirthDate }: {
     if (!newPuppy.birth_date || !newPuppy.birth_date.trim()) {
       validationErrors.push("Birth Date is required")
     } else {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-      if (!dateRegex.test(newPuppy.birth_date)) {
-        validationErrors.push("Birth Date must be in YYYY-MM-DD format")
+      const birthDate = new Date(newPuppy.birth_date.trim());
+      if (isNaN(birthDate.getTime())) {
+        validationErrors.push("Birth Date must be a valid date")
       }
     }
     
@@ -721,12 +721,12 @@ export function PuppyInfoStep({ puppies, onChange, litterBirthDate }: {
     // Clear any previous validation error
     setPuppyValidationError('')
     
-    // Add puppy with sanitized data
+    // Add puppy with sanitized data  
     onChange([...puppies, { 
       ...newPuppy,
       name: newPuppy.name.trim(),
       color: newPuppy.color.trim(),
-      birth_date: newPuppy.birth_date.trim(), // Required field
+      birth_date: newPuppy.birth_date.trim(), // Keep as string for frontend display, will be converted to ISO in backend call
       estimated_adult_weight: newPuppy.estimated_adult_weight && newPuppy.estimated_adult_weight.trim() 
         ? parseFloat(newPuppy.estimated_adult_weight) 
         : '',
@@ -775,7 +775,7 @@ export function PuppyInfoStep({ puppies, onChange, litterBirthDate }: {
             Add individual puppies to this litter ({puppies.length} puppies added)
           </p>
           <p className="text-xs text-blue-600 mt-1">
-            ℹ️ This step is optional - you can create the litter first and add puppies later
+            ℹ️ You can create the litter first and add puppies later, but any puppies added here must have all required fields (Name, Color, Birth Date)
           </p>
         </div>
         <Button

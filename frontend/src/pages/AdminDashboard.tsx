@@ -1084,8 +1084,8 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
         name: litterData.name.trim(),
         breed: litterData.breed as any,
         generation: litterData.generation as any,
-        birth_date: litterData.birth_date || undefined,
-        expected_date: litterData.expected_date || undefined,
+        birth_date: litterData.birth_date ? new Date(litterData.birth_date).toISOString() : undefined,
+        expected_date: litterData.expected_date ? new Date(litterData.expected_date).toISOString() : undefined,
         description: litterData.description?.trim() || undefined,
         mother: {
           ...litterData.mother,
@@ -1162,11 +1162,17 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
 
   // Helper function to sanitize puppy data before sending to backend
   const sanitizePuppyData = (puppy: any) => {
+    // Convert birth_date string to ISO datetime format for backend
+    const birthDate = new Date(puppy.birth_date.trim());
+    if (isNaN(birthDate.getTime())) {
+      throw new Error(`Invalid birth date for puppy ${puppy.name}: ${puppy.birth_date}`);
+    }
+    
     return {
       name: puppy.name.trim(),
       gender: puppy.gender,
       color: puppy.color.trim(),
-      birth_date: puppy.birth_date.trim(), // Required field - must be provided
+      birth_date: birthDate.toISOString(), // Convert to ISO string for backend datetime parsing
       estimated_adult_weight: puppy.estimated_adult_weight && String(puppy.estimated_adult_weight).trim() !== '' 
         ? (typeof puppy.estimated_adult_weight === 'string' 
            ? parseFloat(puppy.estimated_adult_weight) 
@@ -1395,17 +1401,24 @@ function LitterDetailView({ litter, onUpdate, onDelete, onUpdatePuppyStatus, for
   })
 
   const handleAddPuppy = async (puppyData: any) => {
-    if (!puppyData.name || !puppyData.color || !litter.id) {
-      toast.error('Please fill in all required fields')
+    if (!puppyData.name || !puppyData.color || !puppyData.birth_date || !litter.id) {
+      toast.error('Please fill in all required fields (Name, Color, Birth Date)')
       return
     }
 
     try {
+      // Convert birth_date to ISO format for backend
+      const birthDate = new Date(puppyData.birth_date);
+      if (isNaN(birthDate.getTime())) {
+        toast.error('Invalid birth date format')
+        return
+      }
+
       await api.addPuppyToLitter(litter.id, {
         name: puppyData.name,
         gender: puppyData.gender,
         color: puppyData.color,
-        birth_date: puppyData.birth_date,
+        birth_date: birthDate.toISOString(),
         estimated_adult_weight: puppyData.estimated_adult_weight ? parseFloat(puppyData.estimated_adult_weight) : undefined,
         status: puppyData.status as any,
         microchip_id: puppyData.microchip_id || undefined,
@@ -2283,11 +2296,17 @@ function EditLitterFlow({ litter, onSuccess, onCancel }: {
 
   // Helper function to sanitize puppy data before sending to backend (Edit mode)
   const sanitizePuppyDataForEdit = (puppy: any) => {
+    // Convert birth_date string to ISO datetime format for backend
+    const birthDate = new Date(puppy.birth_date.trim());
+    if (isNaN(birthDate.getTime())) {
+      throw new Error(`Invalid birth date for puppy ${puppy.name}: ${puppy.birth_date}`);
+    }
+    
     return {
       name: puppy.name.trim(),
       gender: puppy.gender,
       color: puppy.color.trim(),
-      birth_date: puppy.birth_date.trim(), // Required field - must be provided
+      birth_date: birthDate.toISOString(), // Convert to ISO string for backend datetime parsing
       estimated_adult_weight: puppy.estimated_adult_weight && String(puppy.estimated_adult_weight).trim() !== '' 
         ? (typeof puppy.estimated_adult_weight === 'string' 
            ? parseFloat(puppy.estimated_adult_weight) 
@@ -2309,8 +2328,8 @@ function EditLitterFlow({ litter, onSuccess, onCancel }: {
         name: litterData.name,
         breed: litterData.breed as any,
         generation: litterData.generation as any,
-        birth_date: litterData.birth_date || undefined,
-        expected_date: litterData.expected_date || undefined,
+        birth_date: litterData.birth_date ? new Date(litterData.birth_date).toISOString() : undefined,
+        expected_date: litterData.expected_date ? new Date(litterData.expected_date).toISOString() : undefined,
         description: litterData.description || undefined,
         mother: litterData.mother,
         father: litterData.father,
@@ -2599,14 +2618,21 @@ function PuppyManagementStep({ puppies, onChange, litterBirthDate, litterId, isE
   })
 
   const handleAddPuppy = async () => {
-    if (newPuppy.name && newPuppy.color && litterId && isEdit) {
+    if (newPuppy.name && newPuppy.color && newPuppy.birth_date && litterId && isEdit) {
       try {
+        // Convert birth_date to ISO format for backend
+        const birthDate = new Date(newPuppy.birth_date);
+        if (isNaN(birthDate.getTime())) {
+          toast.error('Invalid birth date format')
+          return
+        }
+
         // Add puppy to backend if we're in edit mode
         const addedPuppy = await api.addPuppyToLitter(litterId, {
           name: newPuppy.name,
           gender: newPuppy.gender,
           color: newPuppy.color,
-          birth_date: newPuppy.birth_date,
+          birth_date: birthDate.toISOString(),
           estimated_adult_weight: newPuppy.estimated_adult_weight,
           status: newPuppy.status,
           microchip_id: newPuppy.microchip_id,

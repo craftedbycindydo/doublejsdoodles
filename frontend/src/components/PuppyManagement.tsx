@@ -54,10 +54,10 @@ export function PuppyManagement({ puppy, litterId, onUpdate, onDelete }: PuppyMa
       return;
     }
     
-    // Validate birth date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(editData.birth_date)) {
-      alert("Birth Date must be in YYYY-MM-DD format");
+    // Validate and convert birth date
+    const birthDate = new Date(editData.birth_date.trim());
+    if (isNaN(birthDate.getTime())) {
+      alert("Birth Date must be a valid date");
       return;
     }
     
@@ -67,7 +67,7 @@ export function PuppyManagement({ puppy, litterId, onUpdate, onDelete }: PuppyMa
         name: editData.name.trim(),
         gender: editData.gender,
         color: editData.color.trim(),
-        birth_date: editData.birth_date.trim(), // Required field
+        birth_date: birthDate.toISOString(), // Convert to ISO string for backend
         estimated_adult_weight: editData.estimated_adult_weight ? parseFloat(editData.estimated_adult_weight) : undefined,
         status: editData.status as any,
         microchip_id: editData.microchip_id?.trim() || undefined,
@@ -601,10 +601,10 @@ function CreatePuppyDialog({
       return;
     }
     
-    // Validate birth date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(formData.birth_date)) {
-      alert("Birth Date must be in YYYY-MM-DD format");
+    // Validate and convert birth date
+    const birthDate = new Date(formData.birth_date.trim());
+    if (isNaN(birthDate.getTime())) {
+      alert("Birth Date must be a valid date");
       return;
     }
     
@@ -615,7 +615,7 @@ function CreatePuppyDialog({
         name: formData.name.trim(),
         gender: formData.gender,
         color: formData.color.trim(),
-        birth_date: formData.birth_date.trim(), // Required field
+        birth_date: birthDate.toISOString(), // Convert to ISO string for backend
         estimated_adult_weight: formData.estimated_adult_weight ? parseFloat(formData.estimated_adult_weight) : undefined,
         status: formData.status as any,
         microchip_id: formData.microchip_id?.trim() || undefined,

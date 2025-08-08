@@ -36,8 +36,28 @@ async def get_homepage_content():
         default_content = {
             "hero_images": [],
             "sections": [],
-            "meta_title": "Double JS Doodles - Premium Goldendoodle Breeder",
-            "meta_description": "Discover beautiful, healthy Goldendoodle puppies from Double JS Doodles. Professional breeder with champion bloodlines and loving care."
+            "meta_title": "Double J's Doodles - Premium Goldendoodle Breeder Colorado | Golden Doodles Near Me | Denver, Utah, Texas",
+            "meta_description": "Premium Goldendoodle breeder in Colorado serving Denver, Colorado Springs, Utah, and Texas. Health tested, home-raised puppies. Golden doodles near me - Double J's Doodles La Junta CO.",
+            "meta_keywords": "goldendoodle breeder, golden doodles near me, goldendoodle puppies Colorado, goldendoodle breeder Colorado, goldendoodle puppies Denver, goldendoodle Utah, goldendoodle Texas, La Junta Colorado breeder, health tested goldendoodle, home raised puppies",
+            "canonical_url": "https://doublejsdoodles.com",
+            "og_title": "Double J's Doodles - Premium Goldendoodle Breeder Colorado",
+            "og_description": "Premium Goldendoodle breeder in Colorado serving Denver, Colorado Springs, Utah, and Texas. Health tested, home-raised puppies ready for loving homes.",
+            "og_image": "https://doublejsdoodles.com/logo512.png",
+            "twitter_title": "Double J's Doodles - Premium Goldendoodle Breeder Colorado",
+            "twitter_description": "Premium Goldendoodle breeder in Colorado serving Denver, Colorado Springs, Utah, and Texas. Health tested, home-raised puppies.",
+            "schema_org": {
+                "@context": "https://schema.org",
+                "@type": "LocalBusiness",
+                "name": "Double J's Doodles",
+                "description": "Premium Goldendoodle breeder in Colorado serving Denver, Colorado Springs, Utah, and Texas.",
+                "address": {
+                    "@type": "PostalAddress",
+                    "addressLocality": "La Junta",
+                    "addressRegion": "CO",
+                    "addressCountry": "US"
+                },
+                "areaServed": ["Colorado", "Utah", "Texas", "Denver", "Colorado Springs"]
+            }
         }
         return default_content
     
