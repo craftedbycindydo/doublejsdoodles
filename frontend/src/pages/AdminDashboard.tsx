@@ -94,6 +94,10 @@ function AdminDashboardComponent() {
   const [isMobile, setIsMobile] = useState(false)
   const [editingLitter, setEditingLitter] = useState<Litter | null>(null)
   
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [litterToDelete, setLitterToDelete] = useState<{ id: string; name: string } | null>(null)
+  
   const { user } = useAuth()
 
   // Handle responsive behavior
@@ -184,25 +188,38 @@ function AdminDashboardComponent() {
     return puppies.filter(puppy => puppy.status === 'available').length
   }
 
-  const handleDeleteLitter = async (litterId: string) => {
-    if (window.confirm('Are you sure you want to delete this litter? This action cannot be undone.')) {
-      try {
-        await api.deleteLitter(litterId)
-        await fetchData()
-        if (selectedLitter?.id === litterId) {
-          setSelectedLitter(null)
-          setActiveNav('litters')
-        }
-      } catch (error) {
-        console.error("Failed to delete litter:", error)
-        toast.error(
-          "Failed to delete litter",
-          {
-            description: error instanceof Error ? error.message : "Please try again"
-          }
-        )
+  const handleDeleteLitter = (litterId: string, litterName: string) => {
+    setLitterToDelete({ id: litterId, name: litterName })
+    setShowDeleteModal(true)
+  }
+
+  const confirmDeleteLitter = async () => {
+    if (!litterToDelete) return
+    
+    try {
+      await api.deleteLitter(litterToDelete.id)
+      await fetchData()
+      if (selectedLitter?.id === litterToDelete.id) {
+        setSelectedLitter(null)
+        setActiveNav('litters')
       }
+      setShowDeleteModal(false)
+      setLitterToDelete(null)
+      toast.success("Litter deleted successfully")
+    } catch (error) {
+      console.error("Failed to delete litter:", error)
+      toast.error(
+        "Failed to delete litter",
+        {
+          description: error instanceof Error ? error.message : "Please try again"
+        }
+      )
     }
+  }
+
+  const cancelDeleteLitter = () => {
+    setShowDeleteModal(false)
+    setLitterToDelete(null)
   }
 
   const handleUpdatePuppyStatus = async (litterId: string, puppyId: string, newStatus: string) => {
@@ -427,7 +444,7 @@ function AdminDashboardComponent() {
               <LitterDetailView 
                 litter={selectedLitter}
                 onUpdate={fetchData}
-                onDelete={() => handleDeleteLitter(selectedLitter.id!)}
+                onDelete={() => handleDeleteLitter(selectedLitter.id!, selectedLitter.name)}
                 onUpdatePuppyStatus={handleUpdatePuppyStatus}
                 formatDate={formatDate}
                 getStatusColor={getStatusColor}
@@ -485,6 +502,42 @@ function AdminDashboardComponent() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-red-700">
+              Delete Litter
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              <p className="mb-2">
+                Are you sure you want to delete the litter <strong>"{litterToDelete?.name}"</strong>?
+              </p>
+              <p className="text-red-600">
+                This action cannot be undone. All puppies and associated data will be permanently deleted.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={cancelDeleteLitter}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeleteLitter}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete Litter
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -673,7 +726,14 @@ function LittersOverview({ litters, onSelectLitter, onCreateLitter, formatDate, 
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {litters.map((litter) => (
+        {[...litters]
+          .sort((a, b) => {
+            // Sort active litters first, then by creation date (newest first)
+            if (a.is_current && !b.is_current) return -1;
+            if (!a.is_current && b.is_current) return 1;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          })
+          .map((litter) => (
           <Card 
             key={litter.id} 
             className="breeder-card hover:shadow-lg transition-all duration-300 cursor-pointer"
@@ -792,16 +852,47 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
       name: '',
       breed: '',
       color: '',
+      weight: undefined as number | undefined,
       health_clearances: [] as string[]
     },
     father: {
       name: '',
       breed: '',
       color: '',
+      weight: undefined as number | undefined,
       health_clearances: [] as string[]
     },
     is_current: true
   })
+  
+  const [validationErrors, setValidationErrors] = useState({
+    name: '',
+    mother: { name: '', breed: '', color: '' },
+    father: { name: '', breed: '', color: '' }
+  })
+
+  // Modal state for handling active litter conflicts
+  const [showActiveLitterModal, setShowActiveLitterModal] = useState(false)
+  const [existingActiveLitter, setExistingActiveLitter] = useState<{ id: string; name: string } | null>(null)
+
+  const clearValidationError = (field: string, parent?: 'mother' | 'father') => {
+    setValidationErrors(prev => {
+      if (parent) {
+        return {
+          ...prev,
+          [parent]: {
+            ...prev[parent],
+            [field]: ''
+          }
+        }
+      } else {
+        return {
+          ...prev,
+          [field]: ''
+        }
+      }
+    })
+  }
   const [puppies, setPuppies] = useState<Array<{
     name: string;
     gender: string;
@@ -822,7 +913,73 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
     { number: 4, title: 'Review & Create', description: 'Confirm and create litter' }
   ]
 
+  const validateCurrentStep = () => {
+    let isValid = true
+    const newErrors = {
+      name: '',
+      mother: { name: '', breed: '', color: '' },
+      father: { name: '', breed: '', color: '' }
+    }
+    
+    if (currentStep === 1) {
+      // Step 1: Litter Information validation
+      if (!litterData.name.trim()) {
+        newErrors.name = 'Litter name is required'
+        isValid = false
+      }
+    } else if (currentStep === 2) {
+      // Step 2: Parent Information validation - ALL required fields
+      
+      // Mother validation
+      if (!litterData.mother.name.trim()) {
+        newErrors.mother.name = 'Mother\'s name is required'
+        isValid = false
+      }
+      if (!litterData.mother.breed.trim()) {
+        newErrors.mother.breed = 'Mother\'s breed is required'
+        isValid = false
+      }
+      if (!litterData.mother.color.trim()) {
+        newErrors.mother.color = 'Mother\'s color is required'
+        isValid = false
+      }
+      
+      // Father validation
+      if (!litterData.father.name.trim()) {
+        newErrors.father.name = 'Father\'s name is required'
+        isValid = false
+      }
+      if (!litterData.father.breed.trim()) {
+        newErrors.father.breed = 'Father\'s breed is required'
+        isValid = false
+      }
+      if (!litterData.father.color.trim()) {
+        newErrors.father.color = 'Father\'s color is required'
+        isValid = false
+      }
+    } else if (currentStep === 3) {
+      // Step 3: Puppy Information validation - check if any puppies have incomplete required fields
+      for (let i = 0; i < puppies.length; i++) {
+        const puppy = puppies[i]
+        
+        if (!puppy.name.trim() || !puppy.color.trim()) {
+          // For puppies, we'll show a toast since they're dynamic
+          toast.error(`Puppy ${i + 1} is missing required fields (name, color)`)
+          isValid = false
+          break
+        }
+      }
+    }
+    
+    setValidationErrors(newErrors)
+    return isValid
+  }
+
   const handleNext = () => {
+    if (!validateCurrentStep()) {
+      return
+    }
+    
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1)
     }
@@ -834,35 +991,124 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
     }
   }
 
-  const handleCreateLitter = async () => {
+  const handleCreateLitter = async (forceActive: boolean = false) => {
     setLoading(true)
+    
+    // Final validation using the same logic as step validation
+    const finalErrors = {
+      name: '',
+      mother: { name: '', breed: '', color: '' },
+      father: { name: '', breed: '', color: '' }
+    }
+    
+    let hasErrors = false
+    
+    // Validate all required fields
+    if (!litterData.name.trim()) {
+      finalErrors.name = 'Litter name is required'
+      hasErrors = true
+    }
+    
+    if (!litterData.mother.name.trim()) {
+      finalErrors.mother.name = 'Mother\'s name is required'
+      hasErrors = true
+    }
+    if (!litterData.mother.breed.trim()) {
+      finalErrors.mother.breed = 'Mother\'s breed is required'
+      hasErrors = true
+    }
+    if (!litterData.mother.color.trim()) {
+      finalErrors.mother.color = 'Mother\'s color is required'
+      hasErrors = true
+    }
+    
+    if (!litterData.father.name.trim()) {
+      finalErrors.father.name = 'Father\'s name is required'
+      hasErrors = true
+    }
+    if (!litterData.father.breed.trim()) {
+      finalErrors.father.breed = 'Father\'s breed is required'
+      hasErrors = true
+    }
+    if (!litterData.father.color.trim()) {
+      finalErrors.father.color = 'Father\'s color is required'
+      hasErrors = true
+    }
+    
+    // Check puppies - validate all required fields and data types
+    for (let i = 0; i < puppies.length; i++) {
+      const puppy = puppies[i]
+      const puppyErrors = []
+      
+      if (!puppy.name.trim()) puppyErrors.push("Name")
+      if (!puppy.color.trim()) puppyErrors.push("Color")
+      
+      // Validate birth_date - REQUIRED field
+      if (!puppy.birth_date || !puppy.birth_date.trim()) {
+        puppyErrors.push("Birth Date (required)")
+      } else {
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+        if (!dateRegex.test(puppy.birth_date)) {
+          puppyErrors.push("Birth Date (must be in YYYY-MM-DD format)")
+        }
+      }
+      
+      // Validate estimated_adult_weight if provided
+      if (puppy.estimated_adult_weight !== undefined && 
+          puppy.estimated_adult_weight !== null &&
+          String(puppy.estimated_adult_weight).trim() !== '') {
+        const weight = typeof puppy.estimated_adult_weight === 'string' 
+          ? parseFloat(puppy.estimated_adult_weight) 
+          : puppy.estimated_adult_weight
+        if (isNaN(weight) || weight <= 0) {
+          puppyErrors.push("Estimated Adult Weight (must be a positive number)")
+        }
+      }
+      
+      if (puppyErrors.length > 0) {
+        toast.error(`Puppy ${i + 1} has invalid data: ${puppyErrors.join(", ")}`)
+        hasErrors = true
+        break
+      }
+    }
+    
+    if (hasErrors) {
+      setValidationErrors(finalErrors)
+      setLoading(false)
+      return
+    }
+    
     try {
       // Create the litter first
       const litter = await api.createLitter({
-        name: litterData.name,
+        name: litterData.name.trim(),
         breed: litterData.breed as any,
         generation: litterData.generation as any,
         birth_date: litterData.birth_date || undefined,
         expected_date: litterData.expected_date || undefined,
-        description: litterData.description || undefined,
-        mother: litterData.mother,
-        father: litterData.father,
+        description: litterData.description?.trim() || undefined,
+        mother: {
+          ...litterData.mother,
+          name: litterData.mother.name.trim(),
+          breed: litterData.mother.breed.trim(),
+          color: litterData.mother.color.trim(),
+          weight: litterData.mother.weight || undefined
+        },
+        father: {
+          ...litterData.father,
+          name: litterData.father.name.trim(),
+          breed: litterData.father.breed.trim(),
+          color: litterData.father.color.trim(),
+          weight: litterData.father.weight || undefined
+        },
         is_current: litterData.is_current
-      })
+      }, forceActive)
 
       // Add puppies if any
       if (puppies.length > 0 && litter.id) {
         for (const puppy of puppies) {
-          await api.addPuppyToLitter(litter.id, {
-            name: puppy.name,
-            gender: puppy.gender,
-            color: puppy.color,
-            birth_date: puppy.birth_date,
-            estimated_adult_weight: puppy.estimated_adult_weight,
-            status: puppy.status,
-            microchip_id: puppy.microchip_id,
-            notes: puppy.notes
-          })
+          const sanitizedPuppyData = sanitizePuppyData(puppy)
+          await api.addPuppyToLitter(litter.id, sanitizedPuppyData)
           
           // Upload images if any
           if (puppy.images && puppy.images.length > 0) {
@@ -872,9 +1118,37 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
         }
       }
 
+      // Close modal if it was open
+      setShowActiveLitterModal(false)
+      setExistingActiveLitter(null)
       onSuccess()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create litter:", error)
+      
+      // Check if this is an active litter conflict (status 409)
+      if (error.status === 409 && !forceActive && litterData.is_current) {
+        // Check if we have the error data with existing litter info
+        if (error.data?.detail?.existing_litter) {
+          setExistingActiveLitter(error.data.detail.existing_litter);
+          setShowActiveLitterModal(true);
+          setLoading(false);
+          return;
+        } else {
+          // Fallback: try to check for active litter
+          try {
+            const activeCheck = await api.checkActiveLitter();
+            if (activeCheck.has_active_litter && activeCheck.active_litter) {
+              setExistingActiveLitter(activeCheck.active_litter);
+              setShowActiveLitterModal(true);
+              setLoading(false);
+              return;
+            }
+          } catch (checkError) {
+            console.error("Failed to check active litter:", checkError);
+          }
+        }
+      }
+      
       toast.error(
         "Failed to create litter",
         {
@@ -884,6 +1158,35 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Helper function to sanitize puppy data before sending to backend
+  const sanitizePuppyData = (puppy: any) => {
+    return {
+      name: puppy.name.trim(),
+      gender: puppy.gender,
+      color: puppy.color.trim(),
+      birth_date: puppy.birth_date.trim(), // Required field - must be provided
+      estimated_adult_weight: puppy.estimated_adult_weight && String(puppy.estimated_adult_weight).trim() !== '' 
+        ? (typeof puppy.estimated_adult_weight === 'string' 
+           ? parseFloat(puppy.estimated_adult_weight) 
+           : puppy.estimated_adult_weight)
+        : undefined,
+      status: puppy.status,
+      microchip_id: puppy.microchip_id && puppy.microchip_id.trim() ? puppy.microchip_id.trim() : undefined,
+      notes: puppy.notes && puppy.notes.trim() ? puppy.notes.trim() : undefined
+    }
+  }
+
+  const handleConfirmMakeActive = () => {
+    handleCreateLitter(true);
+  }
+
+  const handleCancelActiveLitter = () => {
+    setShowActiveLitterModal(false);
+    setExistingActiveLitter(null);
+    // Set the litter to not be current
+    setLitterData(prev => ({ ...prev, is_current: false }));
   }
 
   return (
@@ -962,6 +1265,8 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
             <LitterInfoStep 
               data={litterData}
               onChange={setLitterData}
+              errors={validationErrors}
+              clearError={clearValidationError}
             />
           )}
 
@@ -969,6 +1274,8 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
             <ParentInfoStep 
               data={litterData}
               onChange={setLitterData}
+              errors={validationErrors}
+              clearError={clearValidationError}
             />
           )}
 
@@ -1008,7 +1315,7 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
           </Button>
         ) : (
           <Button 
-            onClick={handleCreateLitter} 
+            onClick={() => handleCreateLitter()} 
             disabled={loading}
             className="glass-button-primary gap-2 w-full sm:w-auto"
           >
@@ -1017,6 +1324,47 @@ function CreateLitterFlow({ onSuccess, onCancel }: {
           </Button>
         )}
       </div>
+
+      {/* Active Litter Conflict Modal */}
+      <Dialog open={showActiveLitterModal} onOpenChange={setShowActiveLitterModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-orange-700">
+              Active Litter Already Exists
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              <p className="mb-2">
+                There is already an active litter: <strong>"{existingActiveLitter?.name}"</strong>
+              </p>
+              <p>
+                Only one litter can be active at a time. Would you like to make this new litter active instead? 
+                This will automatically set the existing litter to inactive.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={handleCancelActiveLitter}
+                className="flex-1"
+              >
+                No, Keep Existing Active
+              </Button>
+              <Button
+                onClick={handleConfirmMakeActive}
+                disabled={loading}
+                className="flex-1 bg-orange-600 hover:bg-orange-700"
+              >
+                {loading ? "Creating..." : "Yes, Make This Active"}
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              You can change the active litter later from the litter management page.
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
   }
@@ -1910,6 +2258,10 @@ function EditLitterFlow({ litter, onSuccess, onCancel }: {
   })))
   const [loading, setLoading] = useState(false)
 
+  // Modal state for handling active litter conflicts
+  const [showActiveLitterModal, setShowActiveLitterModal] = useState(false)
+  const [existingActiveLitter, setExistingActiveLitter] = useState<{ id: string; name: string } | null>(null)
+
   const steps = [
     { number: 1, title: 'Litter Information', description: 'Basic litter details' },
     { number: 2, title: 'Parent Information', description: 'Mother and father details' },
@@ -1929,7 +2281,25 @@ function EditLitterFlow({ litter, onSuccess, onCancel }: {
     }
   }
 
-  const handleUpdateLitter = async () => {
+  // Helper function to sanitize puppy data before sending to backend (Edit mode)
+  const sanitizePuppyDataForEdit = (puppy: any) => {
+    return {
+      name: puppy.name.trim(),
+      gender: puppy.gender,
+      color: puppy.color.trim(),
+      birth_date: puppy.birth_date.trim(), // Required field - must be provided
+      estimated_adult_weight: puppy.estimated_adult_weight && String(puppy.estimated_adult_weight).trim() !== '' 
+        ? (typeof puppy.estimated_adult_weight === 'string' 
+           ? parseFloat(puppy.estimated_adult_weight) 
+           : puppy.estimated_adult_weight)
+        : undefined,
+      status: puppy.status,
+      microchip_id: puppy.microchip_id && puppy.microchip_id.trim() ? puppy.microchip_id.trim() : undefined,
+      notes: puppy.notes && puppy.notes.trim() ? puppy.notes.trim() : undefined
+    }
+  }
+
+  const handleUpdateLitter = async (forceActive: boolean = false) => {
     if (!litter.id) return
     
     setLoading(true)
@@ -1945,40 +2315,52 @@ function EditLitterFlow({ litter, onSuccess, onCancel }: {
         mother: litterData.mother,
         father: litterData.father,
         is_current: litterData.is_current
-      })
+      }, forceActive)
 
       // Handle puppy updates/additions
       for (const puppy of puppies) {
+        const sanitizedPuppyData = sanitizePuppyDataForEdit(puppy)
+        
         if (puppy.id) {
           // Update existing puppy
-          await api.updatePuppy(litter.id, puppy.id, {
-            name: puppy.name,
-            gender: puppy.gender,
-            color: puppy.color,
-            birth_date: puppy.birth_date,
-            estimated_adult_weight: puppy.estimated_adult_weight,
-            status: puppy.status,
-            microchip_id: puppy.microchip_id,
-            notes: puppy.notes
-          })
+          await api.updatePuppy(litter.id, puppy.id, sanitizedPuppyData)
         } else {
           // Add new puppy
-          await api.addPuppyToLitter(litter.id, {
-            name: puppy.name,
-            gender: puppy.gender,
-            color: puppy.color,
-            birth_date: puppy.birth_date,
-            estimated_adult_weight: puppy.estimated_adult_weight,
-            status: puppy.status,
-            microchip_id: puppy.microchip_id,
-            notes: puppy.notes
-          })
+          await api.addPuppyToLitter(litter.id, sanitizedPuppyData)
         }
       }
 
+      // Close modal if it was open
+      setShowActiveLitterModal(false)
+      setExistingActiveLitter(null)
       onSuccess()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update litter:", error)
+      
+      // Check if this is an active litter conflict (status 409)
+      if (error.status === 409 && !forceActive && litterData.is_current) {
+        // Check if we have the error data with existing litter info
+        if (error.data?.detail?.existing_litter) {
+          setExistingActiveLitter(error.data.detail.existing_litter);
+          setShowActiveLitterModal(true);
+          setLoading(false);
+          return;
+        } else {
+          // Fallback: try to check for active litter
+          try {
+            const activeCheck = await api.checkActiveLitter();
+            if (activeCheck.has_active_litter && activeCheck.active_litter && activeCheck.active_litter.id !== litter.id) {
+              setExistingActiveLitter(activeCheck.active_litter);
+              setShowActiveLitterModal(true);
+              setLoading(false);
+              return;
+            }
+          } catch (checkError) {
+            console.error("Failed to check active litter:", checkError);
+          }
+        }
+      }
+      
       toast.error(
         "Failed to update litter",
         {
@@ -1988,6 +2370,17 @@ function EditLitterFlow({ litter, onSuccess, onCancel }: {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleConfirmMakeActive = () => {
+    handleUpdateLitter(true);
+  }
+
+  const handleCancelActiveLitter = () => {
+    setShowActiveLitterModal(false);
+    setExistingActiveLitter(null);
+    // Set the litter to not be current
+    setLitterData(prev => ({ ...prev, is_current: false }));
   }
 
   return (
@@ -2117,7 +2510,7 @@ function EditLitterFlow({ litter, onSuccess, onCancel }: {
           </Button>
         ) : (
           <Button 
-            onClick={handleUpdateLitter} 
+            onClick={() => handleUpdateLitter()} 
             disabled={loading}
             className="glass-button-primary gap-2 w-full sm:w-auto"
           >
@@ -2126,6 +2519,47 @@ function EditLitterFlow({ litter, onSuccess, onCancel }: {
           </Button>
         )}
       </div>
+
+      {/* Active Litter Conflict Modal */}
+      <Dialog open={showActiveLitterModal} onOpenChange={setShowActiveLitterModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-orange-700">
+              Active Litter Already Exists
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              <p className="mb-2">
+                There is already an active litter: <strong>"{existingActiveLitter?.name}"</strong>
+              </p>
+              <p>
+                Only one litter can be active at a time. Would you like to make this litter active instead? 
+                This will automatically set the existing litter to inactive.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={handleCancelActiveLitter}
+                className="flex-1"
+              >
+                No, Keep Existing Active
+              </Button>
+              <Button
+                onClick={handleConfirmMakeActive}
+                disabled={loading}
+                className="flex-1 bg-orange-600 hover:bg-orange-700"
+              >
+                {loading ? "Updating..." : "Yes, Make This Active"}
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              You can change the active litter later from the litter management page.
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

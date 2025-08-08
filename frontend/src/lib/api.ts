@@ -89,6 +89,16 @@ class ApiClient {
       if (response.status === 401) {
         this.clearToken();
       }
+      
+      // For 409 conflicts, include the response body in the error
+      if (response.status === 409) {
+        const errorData = await response.json();
+        const error = new Error(`API Error: ${response.status} ${response.statusText}`);
+        (error as any).status = response.status;
+        (error as any).data = errorData;
+        throw error;
+      }
+      
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
 
@@ -138,15 +148,25 @@ class ApiClient {
     return this.request(`/litters/${id}`);
   }
 
-  async createLitter(litter: Omit<Litter, 'id' | 'created_at' | 'updated_at' | 'puppies'>): Promise<Litter> {
-    return this.request('/litters/', {
+  async checkActiveLitter(): Promise<{ has_active_litter: boolean; active_litter?: { id: string; name: string } }> {
+    return this.request('/litters/check-active');
+  }
+
+  async makeLitterActive(id: string, force: boolean = false): Promise<Litter> {
+    return this.request(`/litters/make-active/${id}?force=${force}`, {
+      method: 'POST',
+    });
+  }
+
+  async createLitter(litter: Omit<Litter, 'id' | 'created_at' | 'updated_at' | 'puppies'>, forceActive: boolean = false): Promise<Litter> {
+    return this.request(`/litters/?force_active=${forceActive}`, {
       method: 'POST',
       body: JSON.stringify(litter),
     });
   }
 
-  async updateLitter(id: string, litter: Partial<Litter>): Promise<Litter> {
-    return this.request(`/litters/${id}`, {
+  async updateLitter(id: string, litter: Partial<Litter>, forceActive: boolean = false): Promise<Litter> {
+    return this.request(`/litters/${id}?force_active=${forceActive}`, {
       method: 'PUT',
       body: JSON.stringify(litter),
     });

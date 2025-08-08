@@ -48,17 +48,30 @@ export function PuppyManagement({ puppy, litterId, onUpdate, onDelete }: PuppyMa
   const handleUpdatePuppy = async () => {
     if (!puppy.id) return;
     
+    // Validate required fields
+    if (!editData.name.trim() || !editData.color.trim() || !editData.birth_date.trim()) {
+      alert("Please fill in all required fields: Name, Color, and Birth Date");
+      return;
+    }
+    
+    // Validate birth date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(editData.birth_date)) {
+      alert("Birth Date must be in YYYY-MM-DD format");
+      return;
+    }
+    
     setLoading(true);
     try {
       await api.updatePuppy(litterId, puppy.id, {
-        name: editData.name,
+        name: editData.name.trim(),
         gender: editData.gender,
-        color: editData.color,
-        birth_date: editData.birth_date,
+        color: editData.color.trim(),
+        birth_date: editData.birth_date.trim(), // Required field
         estimated_adult_weight: editData.estimated_adult_weight ? parseFloat(editData.estimated_adult_weight) : undefined,
         status: editData.status as any,
-        microchip_id: editData.microchip_id || undefined,
-        notes: editData.notes || undefined
+        microchip_id: editData.microchip_id?.trim() || undefined,
+        notes: editData.notes?.trim() || undefined
       });
       
       onUpdate();
@@ -71,18 +84,23 @@ export function PuppyManagement({ puppy, litterId, onUpdate, onDelete }: PuppyMa
     }
   };
 
-  const handleDeletePuppy = async () => {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const handleDeletePuppy = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeletePuppy = async () => {
     if (!puppy.id) return;
     
-    if (window.confirm(`Are you sure you want to delete ${puppy.name}? This action cannot be undone.`)) {
-      try {
-        await api.deletePuppy(litterId, puppy.id);
-        onUpdate();
-        if (onDelete) onDelete();
-      } catch (error) {
-        console.error('Failed to delete puppy:', error);
-        alert('Failed to delete puppy. Please try again.');
-      }
+    try {
+      await api.deletePuppy(litterId, puppy.id);
+      onUpdate();
+      if (onDelete) onDelete();
+      setShowDeleteDialog(false);
+    } catch (error) {
+      console.error('Failed to delete puppy:', error);
+      alert('Failed to delete puppy. Please try again.');
     }
   };
 
@@ -248,6 +266,42 @@ export function PuppyManagement({ puppy, litterId, onUpdate, onDelete }: PuppyMa
           ))}
         </div>
       </CardContent>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-red-700">
+              Delete Puppy
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              <p className="mb-2">
+                Are you sure you want to delete <strong>"{puppy.name}"</strong>?
+              </p>
+              <p className="text-red-600">
+                This action cannot be undone. All puppy data and images will be permanently deleted.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeletePuppy}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete Puppy
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -540,18 +594,32 @@ function CreatePuppyDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.name.trim() || !formData.color.trim() || !formData.birth_date.trim()) {
+      alert("Please fill in all required fields: Name, Color, and Birth Date");
+      return;
+    }
+    
+    // Validate birth date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(formData.birth_date)) {
+      alert("Birth Date must be in YYYY-MM-DD format");
+      return;
+    }
+    
     setLoading(true);
 
     try {
       await api.addPuppyToLitter(litterId, {
-        name: formData.name,
+        name: formData.name.trim(),
         gender: formData.gender,
-        color: formData.color,
-        birth_date: formData.birth_date,
+        color: formData.color.trim(),
+        birth_date: formData.birth_date.trim(), // Required field
         estimated_adult_weight: formData.estimated_adult_weight ? parseFloat(formData.estimated_adult_weight) : undefined,
         status: formData.status as any,
-        microchip_id: formData.microchip_id || undefined,
-        notes: formData.notes || undefined
+        microchip_id: formData.microchip_id?.trim() || undefined,
+        notes: formData.notes?.trim() || undefined
       });
       
       onSuccess();

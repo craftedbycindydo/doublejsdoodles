@@ -53,19 +53,91 @@ async def get_litter(litter_id: str):
         raise HTTPException(status_code=404, detail="Litter not found")
     return serialize_litter(litter_doc)
 
+@router.get("/check-active")
+async def check_active_litter():
+    """Check if an active litter exists (public endpoint)"""
+    db = get_database()
+    existing_current = await db.litters.find_one({"is_current": True})
+    if existing_current:
+        return {
+            "has_active_litter": True,
+            "active_litter": {
+                "id": str(existing_current["_id"]),
+                "name": existing_current["name"]
+            }
+        }
+    return {"has_active_litter": False}
+
+@router.post("/make-active/{litter_id}")
+async def make_litter_active(litter_id: str, force: bool = False, current_admin: AdminUser = Depends(get_current_admin)):
+    """Make a litter active, optionally deactivating others"""
+    db = get_database()
+    
+    # Check if litter exists
+    target_litter = await db.litters.find_one({"_id": ObjectId(litter_id)})
+    if not target_litter:
+        raise HTTPException(status_code=404, detail="Litter not found")
+    
+    # If force is True, deactivate all other litters first
+    if force:
+        await db.litters.update_many(
+            {"_id": {"$ne": ObjectId(litter_id)}},
+            {"$set": {"is_current": False, "updated_at": datetime.now()}}
+        )
+    else:
+        # Check if another current litter exists
+        existing_current = await db.litters.find_one({
+            "is_current": True, 
+            "_id": {"$ne": ObjectId(litter_id)}
+        })
+        if existing_current:
+            raise HTTPException(
+                status_code=409, 
+                detail={
+                    "message": "A current/active litter already exists",
+                    "existing_litter": {
+                        "id": str(existing_current["_id"]),
+                        "name": existing_current["name"]
+                    }
+                }
+            )
+    
+    # Make the target litter active
+    await db.litters.update_one(
+        {"_id": ObjectId(litter_id)},
+        {"$set": {"is_current": True, "updated_at": datetime.now()}}
+    )
+    
+    # Return updated litter
+    updated_litter = await db.litters.find_one({"_id": ObjectId(litter_id)})
+    return serialize_litter(updated_litter)
+
 @router.post("/", response_model=Litter)
-async def create_litter(litter: LitterCreate, current_admin: AdminUser = Depends(get_current_admin)):
+async def create_litter(litter: LitterCreate, force_active: bool = False, current_admin: AdminUser = Depends(get_current_admin)):
     """Create new litter (admin only)"""
     db = get_database()
     
     # If creating a current litter, check if another current litter exists
-    if litter.is_current:
+    if litter.is_current and not force_active:
         existing_current = await db.litters.find_one({"is_current": True})
         if existing_current:
             raise HTTPException(
-                status_code=400, 
-                detail="A current/active litter already exists. Please set the existing litter to inactive before creating a new current litter."
+                status_code=409, 
+                detail={
+                    "message": "A current/active litter already exists",
+                    "existing_litter": {
+                        "id": str(existing_current["_id"]),
+                        "name": existing_current["name"]
+                    }
+                }
             )
+    
+    # If force_active is True, deactivate all other litters
+    if litter.is_current and force_active:
+        await db.litters.update_many(
+            {},
+            {"$set": {"is_current": False, "updated_at": datetime.now()}}
+        )
     
     litter_doc = litter.dict()
     litter_doc["created_at"] = datetime.now()
@@ -79,7 +151,7 @@ async def create_litter(litter: LitterCreate, current_admin: AdminUser = Depends
     return litter_doc
 
 @router.put("/{litter_id}", response_model=Litter)
-async def update_litter(litter_id: str, litter_update: LitterUpdate, current_admin: AdminUser = Depends(get_current_admin)):
+async def update_litter(litter_id: str, litter_update: LitterUpdate, force_active: bool = False, current_admin: AdminUser = Depends(get_current_admin)):
     """Update litter (admin only)"""
     db = get_database()
     
@@ -93,16 +165,29 @@ async def update_litter(litter_id: str, litter_update: LitterUpdate, current_adm
     update_data["updated_at"] = datetime.now()
     
     # If updating to current, check if another current litter exists
-    if update_data.get("is_current") == True:
+    if update_data.get("is_current") == True and not force_active:
         existing_current = await db.litters.find_one({
             "is_current": True, 
             "_id": {"$ne": ObjectId(litter_id)}
         })
         if existing_current:
             raise HTTPException(
-                status_code=400, 
-                detail="A current/active litter already exists. Please set the existing litter to inactive before making this litter current."
+                status_code=409, 
+                detail={
+                    "message": "A current/active litter already exists",
+                    "existing_litter": {
+                        "id": str(existing_current["_id"]),
+                        "name": existing_current["name"]
+                    }
+                }
             )
+    
+    # If force_active is True and making this litter current, deactivate all others
+    if update_data.get("is_current") == True and force_active:
+        await db.litters.update_many(
+            {"_id": {"$ne": ObjectId(litter_id)}},
+            {"$set": {"is_current": False, "updated_at": datetime.now()}}
+        )
     
     # Update litter
     await db.litters.update_one(

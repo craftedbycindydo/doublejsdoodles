@@ -11,12 +11,18 @@ import { api } from '../lib/api';
 import { Plus, Camera, X } from 'lucide-react';
 
 // Step 1: Litter Information
-export function LitterInfoStep({ data, onChange }: {
+export function LitterInfoStep({ data, onChange, errors, clearError }: {
   data: any;
   onChange: (data: any) => void;
+  errors?: { name?: string };
+  clearError?: (field: string) => void;
 }) {
   const handleChange = (field: string, value: string | boolean) => {
     onChange({ ...data, [field]: value });
+    // Clear validation error when user starts typing
+    if (clearError && typeof value === 'string' && value.trim()) {
+      clearError(field);
+    }
   };
 
   return (
@@ -28,15 +34,24 @@ export function LitterInfoStep({ data, onChange }: {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <Label htmlFor="litter-name">Litter Name *</Label>
+          <Label htmlFor="litter-name" className="flex items-center gap-1">
+            Litter Name 
+            <span className="text-red-500 font-medium">*</span>
+          </Label>
           <Input
             id="litter-name"
             value={data.name}
             onChange={(e) => handleChange('name', e.target.value)}
             placeholder="e.g., Spring 2024 Litter"
-            className="mt-1"
+            className={`mt-1 ${errors?.name ? 'border-red-500 focus:border-red-500' : ''}`}
+            required
           />
-          <p className="text-xs text-muted-foreground mt-1">Choose a memorable name for this litter</p>
+          {errors?.name && (
+            <p className="text-sm text-red-600 mt-1">{errors.name}</p>
+          )}
+          {!errors?.name && (
+            <p className="text-xs text-muted-foreground mt-1">Choose a memorable name for this litter</p>
+          )}
         </div>
 
         <div>
@@ -128,11 +143,16 @@ export function LitterInfoStep({ data, onChange }: {
 }
 
 // Step 2: Parent Information
-export function ParentInfoStep({ data, onChange, isEdit = false, litterId }: {
+export function ParentInfoStep({ data, onChange, isEdit = false, litterId, errors, clearError }: {
   data: any;
   onChange: (data: any) => void;
   isEdit?: boolean;
   litterId?: string;
+  errors?: { 
+    mother?: { name?: string; breed?: string; color?: string };
+    father?: { name?: string; breed?: string; color?: string };
+  };
+  clearError?: (field: string, parent: 'mother' | 'father') => void;
 }) {
   const [uploadingMotherImage, setUploadingMotherImage] = useState(false);
   const [uploadingFatherImage, setUploadingFatherImage] = useState(false);
@@ -144,6 +164,10 @@ export function ParentInfoStep({ data, onChange, isEdit = false, litterId }: {
       ...data,
       mother: { ...data.mother, [field]: value }
     });
+    // Clear validation error when user starts typing
+    if (clearError && value.trim()) {
+      clearError(field, 'mother');
+    }
   };
 
   const handleFatherChange = (field: string, value: string) => {
@@ -151,6 +175,10 @@ export function ParentInfoStep({ data, onChange, isEdit = false, litterId }: {
       ...data,
       father: { ...data.father, [field]: value }
     });
+    // Clear validation error when user starts typing
+    if (clearError && value.trim()) {
+      clearError(field, 'father');
+    }
   };
 
   const addHealthClearance = (parent: 'mother' | 'father') => {
@@ -275,36 +303,57 @@ export function ParentInfoStep({ data, onChange, isEdit = false, litterId }: {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="mother-name">Name *</Label>
+              <Label htmlFor="mother-name" className="flex items-center gap-1">
+                Name 
+                <span className="text-red-500 font-medium">*</span>
+              </Label>
               <Input
                 id="mother-name"
                 value={data.mother.name}
                 onChange={(e) => handleMotherChange('name', e.target.value)}
                 placeholder="Mother's registered name"
-                className="mt-1"
+                className={`mt-1 ${errors?.mother?.name ? 'border-red-500 focus:border-red-500' : ''}`}
+                required
               />
+              {errors?.mother?.name && (
+                <p className="text-sm text-red-600 mt-1">{errors.mother.name}</p>
+              )}
             </div>
 
             <div>
-              <Label htmlFor="mother-breed">Breed *</Label>
+              <Label htmlFor="mother-breed" className="flex items-center gap-1">
+                Breed 
+                <span className="text-red-500 font-medium">*</span>
+              </Label>
               <Input
                 id="mother-breed"
                 value={data.mother.breed}
                 onChange={(e) => handleMotherChange('breed', e.target.value)}
                 placeholder="e.g., Golden Retriever, Poodle"
-                className="mt-1"
+                className={`mt-1 ${errors?.mother?.breed ? 'border-red-500 focus:border-red-500' : ''}`}
+                required
               />
+              {errors?.mother?.breed && (
+                <p className="text-sm text-red-600 mt-1">{errors.mother.breed}</p>
+              )}
             </div>
 
             <div>
-              <Label htmlFor="mother-color">Color *</Label>
+              <Label htmlFor="mother-color" className="flex items-center gap-1">
+                Color 
+                <span className="text-red-500 font-medium">*</span>
+              </Label>
               <Input
                 id="mother-color"
                 value={data.mother.color}
                 onChange={(e) => handleMotherChange('color', e.target.value)}
                 placeholder="e.g., Golden, Cream, Red"
-                className="mt-1"
+                className={`mt-1 ${errors?.mother?.color ? 'border-red-500 focus:border-red-500' : ''}`}
+                required
               />
+              {errors?.mother?.color && (
+                <p className="text-sm text-red-600 mt-1">{errors.mother.color}</p>
+              )}
             </div>
 
             <div>
@@ -419,36 +468,57 @@ export function ParentInfoStep({ data, onChange, isEdit = false, litterId }: {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="father-name">Name *</Label>
+              <Label htmlFor="father-name" className="flex items-center gap-1">
+                Name 
+                <span className="text-red-500 font-medium">*</span>
+              </Label>
               <Input
                 id="father-name"
                 value={data.father.name}
                 onChange={(e) => handleFatherChange('name', e.target.value)}
                 placeholder="Father's registered name"
-                className="mt-1"
+                className={`mt-1 ${errors?.father?.name ? 'border-red-500 focus:border-red-500' : ''}`}
+                required
               />
+              {errors?.father?.name && (
+                <p className="text-sm text-red-600 mt-1">{errors.father.name}</p>
+              )}
             </div>
 
             <div>
-              <Label htmlFor="father-breed">Breed *</Label>
+              <Label htmlFor="father-breed" className="flex items-center gap-1">
+                Breed 
+                <span className="text-red-500 font-medium">*</span>
+              </Label>
               <Input
                 id="father-breed"
                 value={data.father.breed}
                 onChange={(e) => handleFatherChange('breed', e.target.value)}
                 placeholder="e.g., Standard Poodle, Golden Retriever"
-                className="mt-1"
+                className={`mt-1 ${errors?.father?.breed ? 'border-red-500 focus:border-red-500' : ''}`}
+                required
               />
+              {errors?.father?.breed && (
+                <p className="text-sm text-red-600 mt-1">{errors.father.breed}</p>
+              )}
             </div>
 
             <div>
-              <Label htmlFor="father-color">Color *</Label>
+              <Label htmlFor="father-color" className="flex items-center gap-1">
+                Color 
+                <span className="text-red-500 font-medium">*</span>
+              </Label>
               <Input
                 id="father-color"
                 value={data.father.color}
                 onChange={(e) => handleFatherChange('color', e.target.value)}
                 placeholder="e.g., Cream, Apricot, Black"
-                className="mt-1"
+                className={`mt-1 ${errors?.father?.color ? 'border-red-500 focus:border-red-500' : ''}`}
+                required
               />
+              {errors?.father?.color && (
+                <p className="text-sm text-red-600 mt-1">{errors.father.color}</p>
+              )}
             </div>
 
             <div>
@@ -617,22 +687,64 @@ export function PuppyInfoStep({ puppies, onChange, litterBirthDate }: {
     images: [] as File[]
   });
 
+  const [puppyValidationError, setPuppyValidationError] = useState('')
+
   const handleAddPuppy = () => {
-    if (newPuppy.name && newPuppy.color) {
-      onChange([...puppies, { ...newPuppy }]);
-      setNewPuppy({
-        name: '',
-        gender: 'Male',
-        color: '',
-        birth_date: litterBirthDate || '',
-        estimated_adult_weight: '',
-        status: 'available',
-        microchip_id: '',
-        notes: '',
-        images: []
-      });
-      setShowAddForm(false);
+    // Validate required fields and data types
+    const validationErrors = []
+    if (!newPuppy.name.trim()) validationErrors.push("Name is required")
+    if (!newPuppy.color.trim()) validationErrors.push("Color is required")
+    
+    // Validate birth_date - REQUIRED field
+    if (!newPuppy.birth_date || !newPuppy.birth_date.trim()) {
+      validationErrors.push("Birth Date is required")
+    } else {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+      if (!dateRegex.test(newPuppy.birth_date)) {
+        validationErrors.push("Birth Date must be in YYYY-MM-DD format")
+      }
     }
+    
+    // Validate estimated_adult_weight if provided
+    if (newPuppy.estimated_adult_weight && newPuppy.estimated_adult_weight.trim()) {
+      const weight = parseFloat(newPuppy.estimated_adult_weight)
+      if (isNaN(weight) || weight <= 0) {
+        validationErrors.push("Estimated Adult Weight must be a positive number")
+      }
+    }
+    
+    if (validationErrors.length > 0) {
+      setPuppyValidationError(validationErrors.join("; "))
+      return
+    }
+    
+    // Clear any previous validation error
+    setPuppyValidationError('')
+    
+    // Add puppy with sanitized data
+    onChange([...puppies, { 
+      ...newPuppy,
+      name: newPuppy.name.trim(),
+      color: newPuppy.color.trim(),
+      birth_date: newPuppy.birth_date.trim(), // Required field
+      estimated_adult_weight: newPuppy.estimated_adult_weight && newPuppy.estimated_adult_weight.trim() 
+        ? parseFloat(newPuppy.estimated_adult_weight) 
+        : '',
+      microchip_id: newPuppy.microchip_id?.trim() || '',
+      notes: newPuppy.notes?.trim() || ''
+    }]);
+    setNewPuppy({
+      name: '',
+      gender: 'Male',
+      color: '',
+      birth_date: litterBirthDate || '',
+      estimated_adult_weight: '',
+      status: 'available',
+      microchip_id: '',
+      notes: '',
+      images: []
+    });
+    setShowAddForm(false);
   };
 
   const handleRemovePuppy = (index: number) => {
@@ -662,6 +774,9 @@ export function PuppyInfoStep({ puppies, onChange, litterBirthDate }: {
           <p className="text-sm text-muted-foreground">
             Add individual puppies to this litter ({puppies.length} puppies added)
           </p>
+          <p className="text-xs text-blue-600 mt-1">
+            ℹ️ This step is optional - you can create the litter first and add puppies later
+          </p>
         </div>
         <Button
           type="button"
@@ -682,13 +797,20 @@ export function PuppyInfoStep({ puppies, onChange, litterBirthDate }: {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="puppy-name">Name *</Label>
+                <Label htmlFor="puppy-name" className="flex items-center gap-1">
+                  Name 
+                  <span className="text-red-500 font-medium">*</span>
+                </Label>
                 <Input
                   id="puppy-name"
                   value={newPuppy.name}
-                  onChange={(e) => setNewPuppy({ ...newPuppy, name: e.target.value })}
+                  onChange={(e) => {
+                    setNewPuppy({ ...newPuppy, name: e.target.value })
+                    if (e.target.value.trim()) setPuppyValidationError('')
+                  }}
                   placeholder="Puppy's name"
-                  className="mt-1"
+                  className={`mt-1 ${!newPuppy.name.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                  required
                 />
               </div>
               
@@ -708,24 +830,38 @@ export function PuppyInfoStep({ puppies, onChange, litterBirthDate }: {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="puppy-color">Color *</Label>
+                <Label htmlFor="puppy-color" className="flex items-center gap-1">
+                  Color 
+                  <span className="text-red-500 font-medium">*</span>
+                </Label>
                 <Input
                   id="puppy-color"
                   value={newPuppy.color}
-                  onChange={(e) => setNewPuppy({ ...newPuppy, color: e.target.value })}
+                  onChange={(e) => {
+                    setNewPuppy({ ...newPuppy, color: e.target.value })
+                    if (e.target.value.trim()) setPuppyValidationError('')
+                  }}
                   placeholder="e.g., Golden, Cream, Red"
-                  className="mt-1"
+                  className={`mt-1 ${!newPuppy.color.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                  required
                 />
               </div>
               
               <div>
-                <Label htmlFor="puppy-birth-date">Birth Date</Label>
+                <Label htmlFor="puppy-birth-date" className="flex items-center gap-1">
+                  Birth Date 
+                  <span className="text-red-500 font-medium">*</span>
+                </Label>
                 <Input
                   id="puppy-birth-date"
                   type="date"
                   value={newPuppy.birth_date}
-                  onChange={(e) => setNewPuppy({ ...newPuppy, birth_date: e.target.value })}
-                  className="mt-1"
+                  onChange={(e) => {
+                    setNewPuppy({ ...newPuppy, birth_date: e.target.value })
+                    if (e.target.value.trim()) setPuppyValidationError('')
+                  }}
+                  className={`mt-1 ${!newPuppy.birth_date ? 'border-red-300 focus:border-red-500' : ''}`}
+                  required
                 />
               </div>
             </div>
@@ -794,6 +930,12 @@ export function PuppyInfoStep({ puppies, onChange, litterBirthDate }: {
               <p className="text-xs text-muted-foreground mt-1">You can select multiple images</p>
             </div>
 
+            {puppyValidationError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{puppyValidationError}</p>
+              </div>
+            )}
+
             <div className="flex gap-2 pt-4">
               <Button
                 type="button"
@@ -806,7 +948,7 @@ export function PuppyInfoStep({ puppies, onChange, litterBirthDate }: {
               <Button
                 type="button"
                 onClick={handleAddPuppy}
-                disabled={!newPuppy.name || !newPuppy.color}
+                disabled={!newPuppy.name || !newPuppy.color || !newPuppy.birth_date}
                 className="flex-1"
               >
                 Add Puppy
